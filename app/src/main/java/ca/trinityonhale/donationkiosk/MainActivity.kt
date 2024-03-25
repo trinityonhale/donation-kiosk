@@ -55,8 +55,6 @@ class MainActivity : FullScreenAppCompatActivity() {
             initializeTerminal()
         }
 
-//        viewModel.checkHasNetworkConnection()
-
         if (!isAllConfigured()) {
             navigateTo(SettingsFragment.TAG, SettingsFragment(),
                 addToBackStack = true
@@ -97,7 +95,7 @@ class MainActivity : FullScreenAppCompatActivity() {
         }
     }
 
-    fun initializeTerminal() {
+    private fun initializeTerminal() {
         Log.d(TAG, "Initializing terminal")
         terminalEventListener = TerminalEventListener(this)
 

@@ -19,6 +19,8 @@ import ca.trinityonhale.donationkiosk.PREFS_SELECTED_READER_SERIAL_NUMBER
 import ca.trinityonhale.donationkiosk.R
 import ca.trinityonhale.donationkiosk.module.encryptedprefs.SharedPreferenceDataStore
 import ca.trinityonhale.donationkiosk.module.stripe.model.DiscoveryMethod
+import com.stripe.stripeterminal.Terminal
+import com.stripe.stripeterminal.external.models.ConnectionStatus
 import com.stripe.stripeterminal.external.models.Reader
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -101,9 +103,20 @@ class RootSettingsFragment: PreferenceFragmentCompat() {
         if (!hasDefaultTerminal()) {
             defaultTerminalPref?.title = "No terminal selected"
             defaultTerminalPref?.summary = "Please select a terminal below"
+        } else {
+            val terminal = Terminal.getInstance().connectedReader
+
+            val batteryLevel = terminal?.batteryLevel?.times(100)?.toInt() ?: 0
+
+            defaultTerminalPref?.title = terminal?.label ?: terminal?.deviceType?.deviceName ?: "Unknown"
+            defaultTerminalPref?.summary =
+                "${terminal?.serialNumber ?: "Unknown"} / Battery: ${batteryLevel}%"
         }
 
-        startDiscovery()
+        // only start discovery if we are not already connected
+        if (Terminal.getInstance().connectionStatus !== ConnectionStatus.CONNECTED) {
+            startDiscovery()
+        }
 
         viewModel.discoveredReaders.observe(viewLifecycleOwner) {
             refreshDiscoveredReaders(it)

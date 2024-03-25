@@ -68,6 +68,10 @@ class CoverFragment : Fragment() {
                 )
                 viewModel.tapCount = 0
             }
+
+            Handler(Looper.getMainLooper()).postDelayed({
+                viewModel.tapCount = 0
+            }, 5000)
         }
     }
 

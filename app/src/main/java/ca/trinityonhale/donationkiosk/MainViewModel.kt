@@ -61,6 +61,7 @@ class MainViewModel @Inject constructor(
         override fun onSuccess(reader: Reader) {
             saveReaderSerialNumber(reader)
             connectionStatus.postValue(ConnectionStatus.CONNECTED)
+            discoveredReaders.postValue(listOf())
         }
     }
 
