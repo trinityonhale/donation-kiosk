@@ -1,6 +1,5 @@
 package ca.trinityonhale.donationkiosk.fragment
 
-import android.content.Context
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -11,14 +10,15 @@ import android.widget.BaseAdapter
 import android.widget.ImageView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import androidx.viewpager.widget.PagerAdapter
-import androidx.viewpager.widget.ViewPager
-import androidx.viewpager.widget.ViewPager.OnPageChangeListener
+import androidx.lifecycle.lifecycleScope
 import ca.trinityonhale.donationkiosk.MainActivity
 import ca.trinityonhale.donationkiosk.databinding.FragmentCoverBinding
 import ca.trinityonhale.donationkiosk.settings.SettingsFragment
 import com.squareup.picasso.Picasso
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
+@AndroidEntryPoint
 class CoverFragment : Fragment() {
 
     companion object {
@@ -46,14 +46,14 @@ class CoverFragment : Fragment() {
             )
         }
 
-        var list = mutableListOf(
-            "https://picsum.photos/seed/1/800/600",
-            "https://picsum.photos/seed/2/800/600",
-            "https://picsum.photos/seed/3/800/600",
-            "https://picsum.photos/seed/4/800/600",
-        )
+        lifecycleScope.launch {
+            viewModel.loadCoverImages()
+        }
 
-        binding.adaptorViewFlipper.adapter = ViewFlipperAdapter(list)
+        viewModel.slides.observe(viewLifecycleOwner) {
+            binding.adaptorViewFlipper.adapter = ViewFlipperAdapter(it)
+        }
+
         binding.adaptorViewFlipper.flipInterval = 5000
         binding.adaptorViewFlipper.isAutoStart = true
         binding.adaptorViewFlipper.startFlipping()
