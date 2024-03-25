@@ -1,0 +1,45 @@
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory app:title="@string/integration">
+
+        <EditTextPreference
+            app:key="stripe_api_key"
+            app:title="@string/stripe_api_key"
+            android:inputType="textPassword"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            app:key="chmeeting_api_key"
+            app:title="@string/chmeeting_api_key"
+            android:inputType="textPassword"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/stripe_terminal">
+
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:key="use_reader_simulator"
+            app:title="@string/use_terminal_simulator" />
+
+        <ListPreference
+            app:defaultValue="bluetooth_scan"
+            app:key="reader_discovery_method"
+            app:entries="@array/terminal_discovery_method_entries"
+            app:entryValues="@array/terminal_discovery_method_values"
+            app:title="@string/terminal_connection_type"
+            app:useSimpleSummaryProvider="true" />
+
+        <!-- currently connected terminal -->
+        <Preference
+            app:key="default_terminal"
+            app:title="@string/terminal"
+        />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/terminal" app:key="terminal_discovery_category">
+    </PreferenceCategory>
+
+</PreferenceScreen>

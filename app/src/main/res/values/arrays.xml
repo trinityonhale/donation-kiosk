@@ -1,0 +1,12 @@
+<resources>
+    <string-array name="terminal_discovery_method_entries">
+        <item>Bluetooth</item>
+        <!--        <item>Internet</item>-->
+        <item>USB</item>
+    </string-array>
+    <string-array name="terminal_discovery_method_values">
+        <item>bluetooth_scan</item>
+        <!--        <item>internet</item>-->
+        <item>usb</item>
+    </string-array>
+</resources>

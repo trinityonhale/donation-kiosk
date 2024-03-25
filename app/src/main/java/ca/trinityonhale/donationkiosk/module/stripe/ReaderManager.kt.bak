@@ -1,0 +1,265 @@
+package ca.trinityonhale.donationkiosk.modules.stripe
+
+import android.Manifest
+import android.content.Context
+import android.content.SharedPreferences
+import android.os.StrictMode
+import android.util.Log
+import androidx.annotation.RequiresPermission
+import ca.trinityonhale.donationkiosk.PREFS_READER_DISCOVERY_METHOD
+import ca.trinityonhale.donationkiosk.PREFS_SELECTED_READER_SERIAL_NUMBER
+import ca.trinityonhale.donationkiosk.PREFS_USE_READER_SIMULATOR
+import ca.trinityonhale.kiosk.modules.stripe.model.DiscoveryMethod
+import ca.trinityonhale.kiosk.modules.stripe.provider.TokenProvider
+import com.stripe.stripeterminal.Terminal
+import com.stripe.stripeterminal.external.callable.Callback
+import com.stripe.stripeterminal.external.callable.Cancelable
+import com.stripe.stripeterminal.external.callable.DiscoveryListener
+import com.stripe.stripeterminal.external.callable.ReaderCallback
+import com.stripe.stripeterminal.external.callable.ReaderListener
+import com.stripe.stripeterminal.external.callable.ReaderReconnectionListener
+import com.stripe.stripeterminal.external.callable.TerminalListener
+import com.stripe.stripeterminal.external.models.ConnectionConfiguration.*
+import com.stripe.stripeterminal.external.models.DiscoveryConfiguration
+import com.stripe.stripeterminal.external.models.Reader
+import com.stripe.stripeterminal.external.models.TerminalException
+import com.stripe.stripeterminal.log.LogLevel
+
+class ReaderManager(
+    private val context: Context,
+    private val tokenProvider: TokenProvider,
+    private val sharedPreferences: SharedPreferences
+) {
+
+    private val terminalListener = object: TerminalListener {
+        override fun onUnexpectedReaderDisconnect(reader: Reader) {
+            TODO("Not yet implemented")
+            // Notify the user that the reader has disconnected
+        }
+    }
+    private val TAG = "ReaderManager"
+
+    var readerListener: ReaderListener? = object : ReaderListener {}
+    var readerReconnectionListener: ReaderReconnectionListener? = object : ReaderReconnectionListener {
+        override fun onReaderReconnectFailed(reader: Reader) {
+            TODO("Not yet implemented")
+        }
+
+        override fun onReaderReconnectSucceeded(reader: Reader) {
+            TODO("Not yet implemented")
+        }
+    }
+
+    // Parameters
+    var savedTerminalSerial: String? = null
+    var discoveryMethod: DiscoveryMethod = DiscoveryMethod.BLUETOOTH_SCAN
+    var isUseSimulated = false
+
+    // Tasks
+    var discoveryTask: Cancelable? = null
+
+    // Properties
+    var discoveredReaders: List<Reader> = emptyList()
+
+    // Listeners
+    // var readerListener: ReaderListener? = null
+    var discoveryListener: DiscoveryListener? = null
+
+    var initialized = false;
+
+    fun initialize() {
+        if (initialized) {
+            return
+        }
+
+        val oldPolicy = StrictMode.allowThreadDiskReads()
+        try {
+            savedTerminalSerial = sharedPreferences.getString(PREFS_SELECTED_READER_SERIAL_NUMBER, null)
+            initializeTerminal()
+            initializeConfig()
+        } finally {
+            StrictMode.setThreadPolicy(oldPolicy)
+        }
+
+        Log.d(TAG, "ReaderManager initialized")
+        initialized = true
+    }
+
+    private fun initializeTerminal() {
+        try {
+            if (!Terminal.isInitialized()) {
+                Terminal.initTerminal(
+                    context,
+                    LogLevel.VERBOSE,
+                    tokenProvider,
+                    terminalListener
+                )
+            }
+        } catch (e: TerminalException) {
+            throw RuntimeException(e)
+        }
+    }
+
+    private fun getSavedDiscoveryMethod (): DiscoveryMethod {
+        return sharedPreferences.getString(
+            PREFS_READER_DISCOVERY_METHOD, DiscoveryMethod.BLUETOOTH_SCAN.value
+        )?.let {
+            Log.d(TAG, "Saved discovery method: $it")
+            DiscoveryMethod.fromValue(it)
+        } ?: DiscoveryMethod.BLUETOOTH_SCAN
+    }
+
+    fun initializeConfig() {
+        discoveryMethod = getSavedDiscoveryMethod()
+        isUseSimulated = sharedPreferences.getBoolean(PREFS_USE_READER_SIMULATOR, false)
+    }
+
+    @RequiresPermission(
+        anyOf = [
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+        ],
+    )
+    fun startDiscovery(
+        onDiscovered: (() -> Unit)? = null,
+        onConnectionSuccess: (() -> Unit)? = null,
+        onConnectionFailure: (() -> Unit)? = null
+    ) {
+
+        // TODO: no discovery when stripe key is not set
+
+        Log.d(TAG, "discoveryTask: " + discoveryTask.toString())
+        Log.d(TAG, "connectedReader: " + Terminal.getInstance().connectedReader.toString())
+        if (discoveryTask == null && Terminal.getInstance().connectedReader == null) {
+
+            Log.d(TAG, "Starting discovery task")
+
+            discoveryTask = Terminal
+                .getInstance()
+                .discoverReaders(
+                    config = when (discoveryMethod) {
+                        DiscoveryMethod.BLUETOOTH_SCAN -> DiscoveryConfiguration.BluetoothDiscoveryConfiguration(0, isUseSimulated)
+//                        DiscoveryMethod.INTERNET -> DiscoveryConfiguration.InternetDiscoveryConfiguration(
+//                            location = selectedLocation.value?.id,
+//                            isSimulated = isSimulated,
+//                        )
+                        DiscoveryMethod.USB -> DiscoveryConfiguration.UsbDiscoveryConfiguration(0, isUseSimulated)
+                    },
+                    discoveryListener = object : DiscoveryListener {
+                        override fun onUpdateDiscoveredReaders(readers: List<Reader>) {
+                            discoveredReaders = readers
+                            discoveryListener?.onUpdateDiscoveredReaders(readers)
+//                            onDiscovered?.invoke()
+                            attemptToConnectToDefaultReader()
+                        }
+                    },
+                    callback = object : Callback {
+                        // NOTE: this is only called when a terminal was connected
+                        override fun onSuccess() {
+                            Log.d(TAG, "Discovery task completed")
+                            onConnectionSuccess?.invoke()
+                            discoveryTask = null
+                        }
+
+                        override fun onFailure(e: TerminalException) {
+                            Log.d(TAG, "Discovery task failed: ${e.message}")
+                            onConnectionFailure?.invoke()
+                            discoveryTask = null
+                        }
+                    }
+                )
+        }
+    }
+
+    fun stopDiscovery() {
+        discoveryTask?.cancel(object: Callback {
+            override fun onSuccess() {
+                discoveryTask = null
+            }
+
+            override fun onFailure(e: TerminalException) {
+                discoveryTask = null
+            }
+
+        })
+    }
+
+    @RequiresPermission(
+        anyOf = [
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+        ],
+    )
+    fun connectToDefaultReader(onSuccess: (() -> Unit)? = null, onFailure: (() -> Unit)? = null) {
+        // if no default has set, or already connected, return
+        if (savedTerminalSerial == null || Terminal.getInstance().connectedReader != null) {
+            return
+        }
+
+        Log.d(TAG, "Connecting to default reader")
+
+        startDiscovery(
+            onDiscovered = {
+                Log.d(TAG, "Discovered readers: ${discoveredReaders.size}")
+                if (discoveredReaders.isNotEmpty()) {
+                    val reader = discoveredReaders.first { it.serialNumber == savedTerminalSerial }
+                    connectToReader(reader, onSuccess, onFailure)
+                }
+            },
+        )
+    }
+
+    fun attemptToConnectToDefaultReader() {
+        if (discoveredReaders.isNotEmpty() && savedTerminalSerial != null) {
+            Log.d(TAG, "Discovered ${discoveredReaders.size} readers")
+            Log.d(TAG, "Attempting to connect to default reader ${savedTerminalSerial}")
+            val reader = discoveredReaders.first { it.serialNumber == savedTerminalSerial }
+            connectToReader(reader, onSuccess = {
+                Log.d(TAG, "Connected to default reader")
+            }, onFailure = {
+                Log.d(TAG, "Failed to connect to default reader")
+            })
+        }
+    }
+
+    fun connectToReader(reader: Reader, onSuccess: (() -> Unit)? = null, onFailure: (() -> Unit)? = null) {
+
+        val locationId = reader.location?.id ?: ""
+
+        sharedPreferences.edit().putString(PREFS_SELECTED_READER_SERIAL_NUMBER, reader.serialNumber).apply()
+
+        Log.d(TAG, "Connecting to reader: ${reader.serialNumber}")
+
+        val readerCallback = object : ReaderCallback {
+            override fun onSuccess(reader: Reader) {
+                Log.d(TAG, "Connected to reader: ${reader.serialNumber}")
+                onSuccess?.invoke()
+            }
+
+            override fun onFailure(e: TerminalException) {
+                onFailure?.invoke()
+                Log.d(TAG, "Failed to connect to reader: ${reader.serialNumber}")
+                sharedPreferences.edit().remove(PREFS_SELECTED_READER_SERIAL_NUMBER).apply()
+            }
+        }
+
+        when (discoveryMethod) {
+            DiscoveryMethod.BLUETOOTH_SCAN -> {
+                Terminal.getInstance().connectBluetoothReader(
+                    reader,
+                    BluetoothConnectionConfiguration(locationId, true, readerReconnectionListener),
+                    readerListener,
+                    readerCallback,
+                )
+            }
+            DiscoveryMethod.USB -> {
+                Terminal.getInstance().connectUsbReader(
+                    reader,
+                    UsbConnectionConfiguration(locationId, true, readerReconnectionListener),
+                    readerListener,
+                    readerCallback,
+                )
+            }
+        }
+    }
+}

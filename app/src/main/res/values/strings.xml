@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_name">Donation Kiosk</string>
+    <string name="title_activity_settings">Settings</string>
+
+    <string name="stripe_api_key">Stripe API Key</string>
+    <string name="integration">Integration</string>
+    <string name="use_terminal_simulator">Use Terminal Simulator</string>
+    <string name="stripe_terminal">Stripe Terminal</string>
+    <string name="terminal_connection_type">Connection Method</string>
+    <string name="terminal">Terminal</string>
+    <string name="alert_acknowledge_button">Okay</string>
+    <string name="location_required_dialog_title">Please select a location</string>
+    <string name="location_required_dialog_message">This reader does not have a previously registered location. Please select a location to register it to.</string>
+    <string name="discovery_reader_unknown">UNKNOWN</string>
+    <string name="discovery_reader_location_unavailable">Location Unavailable</string>
+    <string name="discovery_reader_location_last">Last used location: %s</string>
+    <string name="discovery_reader_location">Will register to location: %s</string>
+    <string name="btn_donate_text">Tap to donate</string>
+    <string name="chmeeting_api_key">Chmeeting API Key</string>
+</resources>
