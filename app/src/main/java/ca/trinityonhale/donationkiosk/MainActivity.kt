@@ -58,7 +58,9 @@ class MainActivity : FullScreenAppCompatActivity() {
 //        viewModel.checkHasNetworkConnection()
 
         if (!isAllConfigured()) {
-            navigateTo(SettingsFragment.TAG, SettingsFragment())
+            navigateTo(SettingsFragment.TAG, SettingsFragment(),
+                addToBackStack = true
+            )
         } else {
             connectDefaultReader()
         }
@@ -136,9 +138,10 @@ class MainActivity : FullScreenAppCompatActivity() {
         tag: String,
         fragment: Fragment,
         replace: Boolean = true,
-        addToBackStack: Boolean = false,
+        addToBackStack: Boolean = false
     ) {
         val frag = supportFragmentManager.findFragmentByTag(tag) ?: fragment
+
         supportFragmentManager
             .beginTransaction()
             .apply {
@@ -153,6 +156,12 @@ class MainActivity : FullScreenAppCompatActivity() {
                 }
             }
             .commitAllowingStateLoss()
+    }
+
+    fun popTopFragment() {
+        if (supportFragmentManager.backStackEntryCount > 0) {
+            supportFragmentManager.popBackStack()
+        }
     }
 
     @Deprecated("Use navigateTo(tag: String, fragment: Fragment) instead")
@@ -188,9 +197,10 @@ class MainActivity : FullScreenAppCompatActivity() {
 
     override fun onBackPressed() {
         Log.d(TAG, "Back pressed")
-        Log.d(TAG, "BackStackEntryCount: ${supportFragmentManager.backStackEntryCount}")
+        Log.d(TAG, "Tags: ${supportFragmentManager.fragments.map { it.tag }}")
+
         if (supportFragmentManager.backStackEntryCount > 0) {
-            supportFragmentManager.popBackStack()
+            supportFragmentManager.popBackStackImmediate()
         } else {
             super.onBackPressed()
         }

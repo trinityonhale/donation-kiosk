@@ -1,28 +1,33 @@
 package ca.trinityonhale.donationkiosk.fragment
 
-import androidx.lifecycle.ViewModelProvider
+import android.app.Activity
+import android.content.Context
 import android.os.Bundle
 import android.text.Editable
 import android.text.InputFilter
 import android.text.Spanned
 import android.text.TextWatcher
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
+import androidx.core.content.ContextCompat.getSystemService
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import ca.trinityonhale.donationkiosk.MainActivity
 import ca.trinityonhale.donationkiosk.databinding.FragmentDonateBinding
 import ca.trinityonhale.donationkiosk.databinding.ViewDonateBinding
-import ca.trinityonhale.donationkiosk.databinding.ViewProcessingBinding
-import ca.trinityonhale.donationkiosk.databinding.ViewPresentCardBinding
 import ca.trinityonhale.donationkiosk.databinding.ViewPaymentFailedBinding
+import ca.trinityonhale.donationkiosk.databinding.ViewPresentCardBinding
+import ca.trinityonhale.donationkiosk.databinding.ViewProcessingBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.util.regex.Matcher
 import java.util.regex.Pattern
+
 
 @AndroidEntryPoint
 class DonateFragment : Fragment() {
@@ -99,7 +104,10 @@ class DonateFragment : Fragment() {
                 }
                 DonateViewModel.PaymentStatus.SUCCESS -> {
                     var activity = requireActivity() as MainActivity
-                    activity.navigateTo(DonateSuccessFragment.TAG, DonateSuccessFragment(viewModel.paymentIntent!!))
+                    activity.popTopFragment()
+                    activity.navigateTo(DonateSuccessFragment.TAG, DonateSuccessFragment(viewModel.paymentIntent!!),
+                        addToBackStack = true
+                    )
                 }
                 DonateViewModel.PaymentStatus.READY -> {}
             }
@@ -134,6 +142,8 @@ class DonateFragment : Fragment() {
         // handle donate button
         viewDonate.btnDonate.setOnClickListener {
             viewDonate.editTextAmount.clearFocus()
+
+            hideKeyboardFrom(requireActivity(), requireView())
             lifecycleScope.launch {
                 try {
                     viewModel.createAndRetrievePaymentIntent(
@@ -158,5 +168,10 @@ class DonateFragment : Fragment() {
                 viewDonate.btnDonate.isEnabled = s.toString().isNotEmpty()
             }
         })
+    }
+
+    private fun hideKeyboardFrom(context: Context, view: View) {
+        val imm = context.getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(view.windowToken, 0)
     }
 }
